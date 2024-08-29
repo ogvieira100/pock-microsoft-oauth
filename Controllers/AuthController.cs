@@ -33,13 +33,15 @@ namespace MicrosoftAuth.POC.Backend.Controllers
         private readonly JwtIssuerOptions _jwtOptions;
         private readonly MicrosoftOAuthRedirects _microsoftOAuthRedirects;
         private readonly AngularStfcorpUrls _angularStfcorpUrls;
-        
+        readonly ITokenAcquisition _tokenAcquisition;
+
         readonly IConfiguration _configuration; 
 
         public AuthController(
             IJwtFactory jwtFactory,
             IOptions<JwtIssuerOptions> jwtOptions,
-            IConfiguration configuration, 
+            IConfiguration configuration,
+            ITokenAcquisition tokenAcquisition, 
             MicrosoftOAuthRedirects microsoftOAuthRedirects,
         
             AngularStfcorpUrls angularStfcorpUrls)
@@ -50,6 +52,7 @@ namespace MicrosoftAuth.POC.Backend.Controllers
             _configuration = configuration; 
             _microsoftOAuthRedirects = microsoftOAuthRedirects;
             _angularStfcorpUrls = angularStfcorpUrls;
+            _tokenAcquisition = tokenAcquisition;
         }
         [HttpGet("list")]
         public async Task<IActionResult> ListUsers()
@@ -67,7 +70,10 @@ namespace MicrosoftAuth.POC.Backend.Controllers
                                             .WithClientSecret(clientSecret)
                                             .Build();
 
-            var scopes = new[] { "https://graph.microsoft.com/.default" };
+
+            var scopes = new[] {
+                "https://graph.microsoft.com/.default"
+            };
             var login = "ogvieira";
            
 
@@ -79,8 +85,7 @@ namespace MicrosoftAuth.POC.Backend.Controllers
 
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-            // var response = await client.GetAsync("https://graph.microsoft.com/v1.0/users");
-            var response = await client.GetAsync("https://graph.microsoft.com/v1.0/users/ogvieira");
+             var response = await client.GetAsync("https://graph.microsoft.com/v1.0/users/ogvieira");
             if (!response.IsSuccessStatusCode)
             {
                 return StatusCode((int)response.StatusCode, await response.Content.ReadAsStringAsync());
@@ -116,6 +121,14 @@ namespace MicrosoftAuth.POC.Backend.Controllers
             var name = result.Principal!.Claims.FirstOrDefault(c => c.Type == "name");
             var email = result.Principal!.Claims.FirstOrDefault(c => c.Type == "preferred_username");
             var login = email.Value.Split('@')[0];
+
+
+            var token = await _tokenAcquisition.GetAccessTokenForUserAsync(new[] { "User.Read" });
+            var client = new HttpClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var response = await client.GetAsync("https://graph.microsoft.com/v1.0/me");
+            var content = await response.Content.ReadAsStringAsync();
 
             //var user = _jwtHelperService.GetUserFromToken(stream!);
             // var responseRepository = _usuarioService.GetUserTokenDataByLogin(user);
