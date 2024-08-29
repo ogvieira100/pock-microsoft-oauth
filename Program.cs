@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Tokens;
 using MicrosoftAuth.POC.Backend;
 using MicrosoftAuth.POC.Backend.Utils.Helper;
@@ -15,36 +16,40 @@ internal class Program
     private static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
-
+        builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
+                .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"))
+                .EnableTokenAcquisitionToCallDownstreamApi()
+                .AddInMemoryTokenCaches();
         // Configuração da autenticação
-        builder.Services.AddAuthentication(options => {
-            options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-            options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
-        })
+        //builder.Services.AddAuthentication(options => {
+        //    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        //    options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+        //})
 
-        .AddCookie(options =>
-        {
-            options.Cookie.Name = "LoginMicrosoftPoc";
-        })
-        .AddCookie("LoginMicrosoftPoc")
-        .AddOpenIdConnect("Microsoft", options =>
-        {
-            options.ClientId = builder.Configuration["AzureAd:ClientId"];
-            options.ClientSecret = builder.Configuration["AzureAd:ClientSecret"];
-            options.Authority = $"{builder.Configuration["AzureAd:Instance"]}/{builder.Configuration["AzureAd:TenantId"]}/v2.0/";
-            options.SignInScheme = "LoginMicrosoftPoc";
-            options.ResponseType = "code";
-            options.Scope.Add("openid");
-            options.Scope.Add("profile");
-            options.CallbackPath = "/signin-oidc";           
-            options.SignedOutCallbackPath = "/signout-callback-oidc";
-            options.RemoteSignOutPath = "/signout-oidc";
-            options.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidIssuer = $"{builder.Configuration["AzureAd:Instance"]}/{builder.Configuration["AzureAd:TenantId"]}/v2.0/"
-            };
-        });
+        //.AddCookie(options =>
+        //{
+        //    options.Cookie.Name = "LoginMicrosoftPoc";
+        //})
+        //.AddOpenIdConnect("Microsoft", options =>
+        //{
+        //    options.ClientId = builder.Configuration["AzureAd:ClientId"];
+        //    options.ClientSecret = builder.Configuration["AzureAd:ClientSecret"];
+        //    options.Authority = $"{builder.Configuration["AzureAd:Instance"]}/{builder.Configuration["AzureAd:TenantId"]}/v2.0/";
+        //    options.SignInScheme = "LoginMicrosoftPoc";
+        //    options.ResponseType = "code";
+        //    options.Scope.Add("openid");
+        //    options.Scope.Add("profile");
+        //    options.CallbackPath = "/signin-oidc";           
+        //    options.SignedOutCallbackPath = "/signout-callback-oidc";
+        //    options.RemoteSignOutPath = "/signout-oidc";
+        //    options.TokenValidationParameters = new TokenValidationParameters
+        //    {
+        //        ValidateIssuer = true,
+        //        ValidIssuer = $"{builder.Configuration["AzureAd:Instance"]}/{builder.Configuration["AzureAd:TenantId"]}/v2.0/"
+        //    };
+        //})
+
+        //;
 
         // Injeção de dependência
         builder.Services.AddScoped<IJwtFactory, JwtFactory>();
