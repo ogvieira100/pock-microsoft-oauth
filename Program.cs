@@ -21,6 +21,7 @@ internal class Program
             options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
             options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
         })
+
         .AddCookie(options =>
         {
             options.Cookie.Name = "LoginMicrosoftPoc";
@@ -72,13 +73,12 @@ internal class Program
         {
 
             options.AddPolicy("Development",
-                  builder =>
-                      builder
-                      .AllowAnyMethod()
-                      .AllowAnyHeader()
-                      .SetIsOriginAllowed(origin => true)
-                      .AllowCredentials()
-                      ); // allow credentials
+              builder =>
+                  builder
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .SetIsOriginAllowed(origin => true) // or specify your allowed origins
+                  .AllowCredentials()); // allow credentials
 
             options.AddPolicy("Production",
                 builder =>
@@ -95,6 +95,8 @@ internal class Program
 
         app.UseAuthentication();
         app.UseAuthorization();
+
+        app.UseStaticFiles();   
 
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())

@@ -1,14 +1,29 @@
 ﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
+using Microsoft.Identity.Client;
+using Microsoft.Identity.Web;
 using MicrosoftAuth.POC.Backend.Utils.Helper;
 using Newtonsoft.Json;
 using System.IdentityModel.Tokens.Jwt;
+using System.Net.Http.Headers;
 
 namespace MicrosoftAuth.POC.Backend.Controllers
 {
-    
+    public class UserListResponse
+    {
+        public User[] Value { get; set; }
+    }
+
+    public class User
+    {
+        public string Id { get; set; }
+        public string DisplayName { get; set; }
+        public string UserPrincipalName { get; set; }
+    }
+
     [ApiController]
     [Route("[controller]")]
     public class AuthController : ControllerBase
@@ -18,18 +33,67 @@ namespace MicrosoftAuth.POC.Backend.Controllers
         private readonly JwtIssuerOptions _jwtOptions;
         private readonly MicrosoftOAuthRedirects _microsoftOAuthRedirects;
         private readonly AngularStfcorpUrls _angularStfcorpUrls;
+        
+        readonly IConfiguration _configuration; 
 
         public AuthController(
             IJwtFactory jwtFactory,
             IOptions<JwtIssuerOptions> jwtOptions,
+            IConfiguration configuration, 
             MicrosoftOAuthRedirects microsoftOAuthRedirects,
+        
             AngularStfcorpUrls angularStfcorpUrls)
         {
             //_jwtHelperService = jwtHelperService;
             _jwtFactory = jwtFactory;
             _jwtOptions = jwtOptions.Value;
+            _configuration = configuration; 
             _microsoftOAuthRedirects = microsoftOAuthRedirects;
             _angularStfcorpUrls = angularStfcorpUrls;
+        }
+        [HttpGet("list")]
+        public async Task<IActionResult> ListUsers()
+        {
+            
+            var client = new HttpClient();
+
+            var clientId =   _configuration.GetSection("AzureAd:ClientId").Value;
+            var tenantId = _configuration.GetSection("AzureAd:TenantId").Value;
+            var clientSecret = _configuration.GetSection("AzureAd:ClientSecret").Value;
+
+            var confidentialClientApplication = ConfidentialClientApplicationBuilder
+                                            .Create(clientId)
+                                            .WithTenantId(tenantId)
+                                            .WithClientSecret(clientSecret)
+                                            .Build();
+
+            var scopes = new[] { "https://graph.microsoft.com/.default" };
+            var login = "ogvieira";
+           
+
+            var authenticationResult = await confidentialClientApplication
+                .AcquireTokenForClient(scopes)
+                .ExecuteAsync();
+
+            var token = authenticationResult.AccessToken;
+
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            // var response = await client.GetAsync("https://graph.microsoft.com/v1.0/users");
+            var response = await client.GetAsync("https://graph.microsoft.com/v1.0/users/ogvieira");
+            if (!response.IsSuccessStatusCode)
+            {
+                return StatusCode((int)response.StatusCode, await response.Content.ReadAsStringAsync());
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            var users = JsonConvert.DeserializeObject<UserListResponse>(content);
+
+            return Ok(users);
+
+            //var token = await _tokenAcquisition.GetAccessTokenForUserAsync(new[] { "User.Read.All" });
+           
+
         }
 
         [AllowAnonymous]
@@ -68,7 +132,7 @@ namespace MicrosoftAuth.POC.Backend.Controllers
 
             //return Ok(_angularStfcorpUrls.UrlPaginaPrincipal + jwt);
             //return Redirect(_angularStfcorpUrls.UrlPaginaPrincipal + "?token=" + jwt);
-            return Redirect(_angularStfcorpUrls.UrlPaginaPrincipal);
+            return Redirect(_angularStfcorpUrls.UrlPaginaPrincipal+"?jwt="+ jwt);
         }
 
         [HttpPost("VerificarToken/")]
